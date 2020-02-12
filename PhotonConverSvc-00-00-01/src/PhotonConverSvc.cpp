@@ -98,7 +98,7 @@ void PhotonConverSvc::GetInfoI(const std::string& info_name, int& targe) {
     // cout << "Info in PhotonConverSvc::GetInfoI: "
     //    << "info_name = " << info_name << endl;
     if (info_name == "Ngamma") {
-        targe = m_Ngamam;
+        targe = m_EEGList.size();
     }
 }
 void PhotonConverSvc::GetInfoD(const std::string& info_name, double& targe) {
