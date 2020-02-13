@@ -1,0 +1,21 @@
+#include "$PI0ETATOGGRECALGROOT/share/jobOptions_Pi0EtaToGGRec.txt"
+Pi0EtaToGGRecAlg.PhotonInBarrelOrEndcap = true;
+Pi0EtaToGGRecAlg.PhotonApplyTimeCut = true;
+Pi0EtaToGGRecAlg.RejectBothInEndcap = true;
+ApplicationMgr.DLLs += { "PhotonConverSvc" };
+PhotonConverSvc.UseCbE = false;
+PhotonConverSvc.ReadEcm = false;
+PhotonConverSvc.SetEcm = 4.260;
+
+// select pi0
+Pi0Selector.MinMass = 0.115;
+Pi0Selector.MaxMass = 0.150;
+Pi0Selector.MaxChisq = 200.0;
+
+// solo photon
+SoloPhotonSelector.VetoPi0 = true;
+SoloPhotonSelector.MinPi0Mass = 0.115;
+SoloPhotonSelector.MaxPi0Mass = 0.150;
+SoloPhotonSelector.MaxPi0Chisq = 200;
+SoloPhotonSelector.UseDangCut = true;
+SoloPhotonSelector.MinDang = 10;

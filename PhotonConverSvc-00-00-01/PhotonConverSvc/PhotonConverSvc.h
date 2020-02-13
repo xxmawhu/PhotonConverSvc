@@ -61,12 +61,12 @@ class PhotonConverSvc : public Service,
     int m_Ngamam;
     vector<double> m_EEGList;
     CDPhotonList m_PhotonList;
-    bool GetParList();
+    void GetParList();
     IDataProviderSvc* eventSvc_;
     IDatabaseSvc* m_dbsvc;
     // McDecayModeSvc* m_MCDecayModeSvc;
     mutable EventNavigator* m_navigator;
-    bool m_usecbE;
+    bool m_readEcm, m_usecbE;
     int m_runID, m_eventID, m_status;
     void ReadDb(int run, double&);
     void AnaBeamStatus();

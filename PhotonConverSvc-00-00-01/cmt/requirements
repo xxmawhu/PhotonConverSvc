@@ -13,5 +13,5 @@ use TupleSvc TupleSvc-* Utilities
 use GammaConv GammaConv-* Utilities
 use BesStdSelector BesStdSelector-* Utilities 
 
+macro_append PhotonConverSvc_cppflags "-Wall"
 apply_pattern dual_use_library files=*.cpp components/*.cxx
-macro_append PhotonConverSvc_cppflags " -w"

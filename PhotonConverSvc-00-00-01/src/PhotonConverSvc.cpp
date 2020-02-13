@@ -26,13 +26,16 @@ PhotonConverSvc::PhotonConverSvc(const std::string& name, ISvcLocator* svcLoc)
       m_Rx(0),
       m_Ry(0),
       m_mrec(0),
-      m_Ngamam(0),
-      m_Ecm(3.0969) {
+      m_runID(0),
+      m_eventID(0),
+      m_Ngamam(0) {
     UpdateAvialInfo();
     m_tracks[0] = NULL;
     m_tracks[1] = NULL;
     // calibrated beam Energy
     SetName("PhotonConv");
+    declareProperty("ReadEcm", m_readEcm = true);
+    declareProperty("SetEcm", m_Ecm = 4.260);
     declareProperty("UseCbE", m_usecbE = false);
 }
 
@@ -47,53 +50,6 @@ void PhotonConverSvc::UpdateAvialInfo() {
     AvailableInfo::Add("mRec", "double");
     AvailableInfo::Add("mEEL", "double", "Ngamma");
 }
-
-void PhotonConverSvc::SetDecayTree(DecayTree decayTree) {
-    m_decayTree = decayTree;
-}
-
-void PhotonConverSvc::Feed(const CDCandidate& sig) {
-    m_EEGList.clear();
-    HepLorentzVector p4Ep, p4Em;
-    for (int i = 0; i < m_decayTree.size(); ++i) {
-        if (m_decayTree.PID(i) == 11) {
-            const CDCandidate& trk = sig.decay().child(i);
-            m_tracks[0] =
-                const_cast<EvtRecTrack*>(trk.finalChildren().first[0]);
-            p4Ep = trk.p4();
-            continue;
-        }
-        if (m_decayTree.PID(i) == -11) {
-            const CDCandidate& trk = sig.decay().child(i);
-            p4Em = trk.p4();
-            m_tracks[1] =
-                const_cast<EvtRecTrack*>(trk.finalChildren().first[0]);
-            continue;
-        }
-    }
-    if (m_tracks[0] == NULL || m_tracks[1] == NULL) {
-        return;
-    }
-    HepVector helix1 = m_tracks[0]->mdcKalTrack()->getZHelixE();
-    HepVector helix2 = m_tracks[1]->mdcKalTrack()->getZHelixE();
-    HepPoint3D IP(0, 0, 0);
-    GammaConv gammaConv(helix1, helix2, IP);
-    m_Rxy = gammaConv.getRxy();
-    m_Rx = gammaConv.getRx();
-    m_Ry = gammaConv.getRy();
-    this->AnaBeamStatus();
-    m_p4Beam = HepLorentzVector(m_Ecm, 0, 0, 0.011 * m_Ecm);
-    m_mrec = (m_p4Beam - p4Ep - p4Em).m();
-    GetParList();
-    m_Ngamam = m_PhotonList.size();
-    for (CDPhotonList::iterator itr = m_PhotonList.particle_begin();
-         itr != m_PhotonList.particle_end(); ++itr) {
-        const CDCandidate& photon = (*itr).particle();
-        double mass = (photon.p4() + p4Ep + p4Em).m();
-        m_EEGList.push_back(mass);
-    }
-}
-
 void PhotonConverSvc::GetInfoI(const std::string& info_name, int& targe) {
     // cout << "Info in PhotonConverSvc::GetInfoI: "
     //    << "info_name = " << info_name << endl;
@@ -112,7 +68,6 @@ void PhotonConverSvc::GetInfoD(const std::string& info_name, double& targe) {
         targe = m_mrec;
     }
 }
-
 void PhotonConverSvc::GetInfoVd(const std::string& info_name,
                                 std::vector<double>& targe) {
     if (info_name == "mEEL") {
@@ -120,22 +75,10 @@ void PhotonConverSvc::GetInfoVd(const std::string& info_name,
     }
 }
 
-void PhotonConverSvc::AnaBeamStatus() {
-    SmartDataPtr<Event::EventHeader> eventHeader(eventSvc_,
-                                                 "/Event/EventHeader");
-    if (m_runID == eventHeader->runNumber() &&
-        m_eventID == eventHeader->eventNumber()) {
-        //  cout << "Info in PhotonConverSvc::AnaBeamStatus: "
-        //      << "#run = " << m_run << ", #id = " << m_event << endl;
-        return;
-    } else {
-        m_runID = eventHeader->runNumber();
-        m_eventID = eventHeader->eventNumber();
-        //  cout << "Info in PhotonConverSvc::AnaBeamStatus: "
-        //      << "#run = " << m_run << ", #id = " << m_event << endl;
-    }
-    this->ReadDb(abs(m_runID), m_Ecm);
+void PhotonConverSvc::SetDecayTree(DecayTree decayTree) {
+    m_decayTree = decayTree;
 }
+void PhotonConverSvc::SetEcm(double Ecm) { m_Ecm = Ecm; }
 
 void PhotonConverSvc::ReadDb(int run, double& Ecm) {
     Gaudi::svcLocator()->service("DatabaseSvc", m_dbsvc, true);
@@ -179,9 +122,33 @@ void PhotonConverSvc::ReadDb(int run, double& Ecm) {
     }
     return;
 }
+void PhotonConverSvc::AnaBeamStatus() {
+    SmartDataPtr<Event::EventHeader> eventHeader(eventSvc_,
+                                                 "/Event/EventHeader");
+    if (m_runID == eventHeader->runNumber() &&
+        m_eventID == eventHeader->eventNumber()) {
+        //  cout << "Info in PhotonConverSvc::AnaBeamStatus: "
+        //      << "#run = " << m_run << ", #id = " << m_event << endl;
+        return;
+    } else {
+        m_runID = eventHeader->runNumber();
+        m_eventID = eventHeader->eventNumber();
+        //  cout << "Info in PhotonConverSvc::AnaBeamStatus: "
+        //      << "#run = " << m_run << ", #id = " << m_event << endl;
+    }
+    this->ReadDb(abs(m_runID), m_Ecm);
+}
 
-void PhotonConverSvc::SetEcm(double Ecm) { m_Ecm = Ecm; }
-bool PhotonConverSvc::GetParList() {
+void PhotonConverSvc::GetParList() {
+    SmartDataPtr<Event::EventHeader> eventHeader(eventSvc_,
+                                                 "/Event/EventHeader");
+    if (m_runID == eventHeader->runNumber() &&
+        m_eventID == eventHeader->eventNumber()) {
+        return;
+    } else {
+        m_runID = eventHeader->runNumber();
+        m_eventID = eventHeader->eventNumber();
+    }
     SmartDataPtr<EvtRecEvent> evtRecEvent(eventSvc_,
                                           "/Event/EvtRec/EvtRecEvent");
     SmartDataPtr<EvtRecTrackCol> evtRecTrackCol(eventSvc_,
@@ -191,13 +158,14 @@ bool PhotonConverSvc::GetParList() {
                                              "/Event/EvtRec/EvtRecPi0Col");
         CDPi0List Pi0List(pi0Selector);
         dc_fill(Pi0List, recPi0Col->begin(), recPi0Col->end());
+        cout << "Info in <PhotonConverSvc::GetParList>: ";
+        cout << "Pi0List.size = " << Pi0List.size() << endl;
 
         // fill into  the vector
         vector<const EvtRecPi0*> _pi0s;
         for (CDPi0List::iterator itr = Pi0List.particle_begin();
              itr != Pi0List.particle_end(); ++itr) {
-            const EvtRecPi0* navPi0 =
-                (*itr).particle().decay().child(0).navPi0();
+            const EvtRecPi0* navPi0 = (*itr).particle().navPi0();
             _pi0s.push_back(navPi0);
         }
         BesStdSelector::soloPhotonSelector.setPi0s(_pi0s);
@@ -206,10 +174,62 @@ bool PhotonConverSvc::GetParList() {
     int nCharged = evtRecEvent->totalCharged();
     EvtRecTrackIterator neu_begin = evtRecTrackCol->begin() + nCharged;
     EvtRecTrackIterator neu_end = evtRecTrackCol->end();
+    cout << "Info in <PhotonConverSvc::GetParList>: ";
+    cout << "#showers = " << neu_end - neu_begin << endl;
     m_PhotonList = CDPhotonList(neu_begin, neu_end, soloPhotonSelector);
+    cout << "Info in <PhotonConverSvc::GetParList>: ";
+    cout << "#solo photon = " << m_PhotonList.size() << endl;
 
-    if (m_PhotonList.empty()) {
-        return false;
+    return;
+}
+
+void PhotonConverSvc::Feed(const CDCandidate& sig) {
+    m_EEGList.clear();
+    HepLorentzVector p4Ep, p4Em;
+    for (int i = 0; i < m_decayTree.size(); ++i) {
+        cout << "PID[" << i << "] = " << m_decayTree.PID(i) << endl;
+        if (m_decayTree.PID(i) == 11) {
+            const CDCandidate& trk = sig.decay().child(i);
+            m_tracks[0] =
+                const_cast<EvtRecTrack*>(trk.finalChildren().first[0]);
+            p4Ep = trk.p4();
+            continue;
+        }
+        if (m_decayTree.PID(i) == -11) {
+            const CDCandidate& trk = sig.decay().child(i);
+            p4Em = trk.p4();
+            m_tracks[1] =
+                const_cast<EvtRecTrack*>(trk.finalChildren().first[0]);
+            continue;
+        }
     }
-    return true;
+    if (m_tracks[0] == NULL || m_tracks[1] == NULL) {
+        return;
+    }
+    cout << "Info in <PhotonConverSvc::Feed>: ";
+    cout << "get two tracks successful!" << endl;
+    HepVector helix1 = m_tracks[0]->mdcKalTrack()->getZHelixE();
+    HepVector helix2 = m_tracks[1]->mdcKalTrack()->getZHelixE();
+    HepPoint3D IP(0, 0, 0);
+    GammaConv gammaConv(helix1, helix2, IP);
+    m_Rxy = gammaConv.getRxy();
+    m_Rx = gammaConv.getRx();
+    m_Ry = gammaConv.getRy();
+    if (m_readEcm) {
+        this->AnaBeamStatus();
+    }
+    cout << "Info in <PhotonConverSvc::Feed>: ";
+    cout << "Ecm = " << m_Ecm << endl;
+    m_p4Beam = HepLorentzVector(0.011 * m_Ecm, 0, 0, m_Ecm);
+    m_mrec = (m_p4Beam - p4Ep - p4Em).m();
+    cout << "Info in <PhotonConverSvc::Feed>: ";
+    cout << "mRec = " << m_mrec << endl;
+    GetParList();
+    m_Ngamam = m_PhotonList.size();
+    for (CDPhotonList::iterator itr = m_PhotonList.particle_begin();
+         itr != m_PhotonList.particle_end(); ++itr) {
+        const CDCandidate& photon = (*itr).particle();
+        double mass = (photon.p4() + p4Ep + p4Em).m();
+        m_EEGList.push_back(mass);
+    }
 }
