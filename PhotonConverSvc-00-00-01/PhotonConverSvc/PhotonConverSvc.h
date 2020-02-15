@@ -56,7 +56,7 @@ class PhotonConverSvc : public Service,
     HepLorentzVector m_p4Beam;
     DecayTree m_decayTree;
     double m_Ecm;
-    double m_Rxy, m_Rx, m_Ry;
+    double m_Rxy, m_Rx, m_Ry, m_angle, m_Mee;
     double m_mrec;
     int m_Ngamam;
     vector<double> m_EEGList;

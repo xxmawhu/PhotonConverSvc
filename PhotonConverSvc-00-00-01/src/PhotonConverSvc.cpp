@@ -48,7 +48,9 @@ void PhotonConverSvc::UpdateAvialInfo() {
     AvailableInfo::Add("Rxy", "double");
     AvailableInfo::Add("Ngamma", "int");
     AvailableInfo::Add("mRec", "double");
+    AvailableInfo::Add("Angle", "double");
     AvailableInfo::Add("mEEL", "double", "Ngamma");
+    AvailableInfo::Add("Mee", "double");
 }
 void PhotonConverSvc::GetInfoI(const std::string& info_name, int& targe) {
     // cout << "Info in PhotonConverSvc::GetInfoI: "
@@ -66,6 +68,10 @@ void PhotonConverSvc::GetInfoD(const std::string& info_name, double& targe) {
         targe = m_Rxy;
     } else if (info_name == "mRec") {
         targe = m_mrec;
+    } else if (info_name == "Angle") {
+        targe = m_angle/3.1415926*180;
+    } else if (info_name == "Mee") {
+        targe = m_Mee;
     }
 }
 void PhotonConverSvc::GetInfoVd(const std::string& info_name,
@@ -117,8 +123,8 @@ void PhotonConverSvc::ReadDb(int run, double& Ecm) {
         E_E = records->GetDouble("BER_PRB");
         E_P = records->GetDouble("BPR_PRB");
         Ecm = E_E + E_P;
-        /// cout << "beam_energy = " << Ecm
-        ///     << endl;
+        /// cout << "beam_energy = " << Ecm;
+        /// cout  << endl;
     }
     return;
 }
@@ -158,8 +164,8 @@ void PhotonConverSvc::GetParList() {
                                              "/Event/EvtRec/EvtRecPi0Col");
         CDPi0List Pi0List(pi0Selector);
         dc_fill(Pi0List, recPi0Col->begin(), recPi0Col->end());
-        cout << "Info in <PhotonConverSvc::GetParList>: ";
-        cout << "Pi0List.size = " << Pi0List.size() << endl;
+        /// cout << "Info in <PhotonConverSvc::GetParList>: ";
+        /// cout << "Pi0List.size = " << Pi0List.size() << endl;
 
         // fill into  the vector
         vector<const EvtRecPi0*> _pi0s;
@@ -174,12 +180,11 @@ void PhotonConverSvc::GetParList() {
     int nCharged = evtRecEvent->totalCharged();
     EvtRecTrackIterator neu_begin = evtRecTrackCol->begin() + nCharged;
     EvtRecTrackIterator neu_end = evtRecTrackCol->end();
-    cout << "Info in <PhotonConverSvc::GetParList>: ";
-    cout << "#showers = " << neu_end - neu_begin << endl;
+    ///  cout << "Info in <PhotonConverSvc::GetParList>: ";
+    ///  cout << "#showers = " << neu_end - neu_begin << endl;
     m_PhotonList = CDPhotonList(neu_begin, neu_end, soloPhotonSelector);
-    cout << "Info in <PhotonConverSvc::GetParList>: ";
-    cout << "#solo photon = " << m_PhotonList.size() << endl;
-
+    /// cout << "Info in <PhotonConverSvc::GetParList>: ";
+    /// cout << "#solo photon = " << m_PhotonList.size() << endl;
     return;
 }
 
@@ -187,7 +192,7 @@ void PhotonConverSvc::Feed(const CDCandidate& sig) {
     m_EEGList.clear();
     HepLorentzVector p4Ep, p4Em;
     for (int i = 0; i < m_decayTree.size(); ++i) {
-        cout << "PID[" << i << "] = " << m_decayTree.PID(i) << endl;
+        /// cout << "PID[" << i << "] = " << m_decayTree.PID(i) << endl;
         if (m_decayTree.PID(i) == 11) {
             const CDCandidate& trk = sig.decay().child(i);
             m_tracks[0] =
@@ -206,8 +211,8 @@ void PhotonConverSvc::Feed(const CDCandidate& sig) {
     if (m_tracks[0] == NULL || m_tracks[1] == NULL) {
         return;
     }
-    cout << "Info in <PhotonConverSvc::Feed>: ";
-    cout << "get two tracks successful!" << endl;
+    ///  cout << "Info in <PhotonConverSvc::Feed>: ";
+    ///  cout << "get two tracks successful!" << endl;
     HepVector helix1 = m_tracks[0]->mdcKalTrack()->getZHelixE();
     HepVector helix2 = m_tracks[1]->mdcKalTrack()->getZHelixE();
     HepPoint3D IP(0, 0, 0);
@@ -218,12 +223,16 @@ void PhotonConverSvc::Feed(const CDCandidate& sig) {
     if (m_readEcm) {
         this->AnaBeamStatus();
     }
-    cout << "Info in <PhotonConverSvc::Feed>: ";
-    cout << "Ecm = " << m_Ecm << endl;
-    m_p4Beam = HepLorentzVector(0.011 * m_Ecm, 0, 0, m_Ecm);
+    /// cout << "Info in <PhotonConverSvc::Feed>: ";
+    /// cout << "Ecm = " << m_Ecm << endl;
+    m_angle = p4Em.angle(p4Ep.vect());
+    m_Mee = (p4Ep + p4Em).m();
+    m_p4Beam = HepLorentzVector(0, 0, 0, m_Ecm);
+    p4Em.boost(-0.011, 0, 0);
+    p4Ep.boost(-0.011, 0, 0);
     m_mrec = (m_p4Beam - p4Ep - p4Em).m();
-    cout << "Info in <PhotonConverSvc::Feed>: ";
-    cout << "mRec = " << m_mrec << endl;
+    /// cout << "Info in <PhotonConverSvc::Feed>: ";
+    /// cout << "mRec = " << m_mrec << endl;
     GetParList();
     m_Ngamam = m_PhotonList.size();
     for (CDPhotonList::iterator itr = m_PhotonList.particle_begin();
